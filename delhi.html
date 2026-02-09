@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NirvachanNex | AI Electoral Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* --- VISUAL SYSTEM (Glass/Dark Theme) --- */
+        :root {
+            --bg-body: #020515;
+            --bg-gradient: radial-gradient(circle at top, #151d3b 0%, #020515 50%, #01010a 100%);
+            --glass-bg: rgba(15, 24, 54, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --accent-cyan: #4ef2ff;
+            --accent-purple: #9c6bff;
+            --text-main: #f5f7ff;
+            --text-muted: rgba(230, 235, 255, 0.6);
+            --radius-lg: 16px;
+        }
+
+        body { margin: 0; height: 100vh; overflow: hidden; background: var(--bg-gradient); font-family: 'Inter', sans-serif; color: var(--text-main); }
+        .app-shell { display: flex; flex-direction: column; height: 100%; }
+
+        /* Header */
+        .app-header { 
+            height: 70px; display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 30px; border-bottom: 1px solid var(--glass-border); 
+            background: rgba(6, 10, 30, 0.8); backdrop-filter: blur(12px); z-index: 50; 
+        }
+        .brand-block { display: flex; align-items: center; gap: 12px; }
+        .brand-logo-img { 
+            width: 40px; height: 40px; 
+            border-radius: 10px; 
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .brand-title { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.5px; }
+        .brand-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-left: 10px; border-left: 1px solid var(--glass-border); padding-left: 10px; }
+
+        /* Layout */
+        .main-layout { display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 70px); }
+        
+        /* Sidebar */
+        .sidebar { background: rgba(6, 10, 30, 0.5); border-right: 1px solid var(--glass-border); padding: 25px; display: flex; flex-direction: column; gap: 15px; }
+        .nav-card { padding: 18px; border-radius: var(--radius-lg); background: rgba(255, 255, 255, 0.03); border: 1px solid transparent; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 15px; }
+        .nav-card:hover { background: rgba(255, 255, 255, 0.08); transform: translateY(-2px); }
+        .nav-card.active { background: linear-gradient(135deg, rgba(78, 242, 255, 0.1), rgba(156, 107, 255, 0.1)); border-color: rgba(78, 242, 255, 0.3); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+        .nav-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: var(--text-muted); }
+        .nav-card.active .nav-icon { color: var(--accent-cyan); background: rgba(78, 242, 255, 0.1); }
+        .nav-info div:first-child { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; }
+        .nav-info div:last-child { font-size: 0.75rem; color: var(--text-muted); }
+
+        /* Content */
+        .content-area { padding: 30px 40px; overflow-y: auto; position: relative; }
+        .page-header { margin-bottom: 30px; animation: slideDown 0.5s ease; }
+        .page-title { font-size: 2rem; font-weight: 700; margin-bottom: 10px; }
+        .page-desc { color: var(--text-muted); font-size: 0.9rem; max-width: 600px; }
+
+        .seats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; animation: fadeIn 0.6s ease; }
+        .seat-card { background: rgba(15, 24, 54, 0.6); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; cursor: pointer; position: relative; overflow: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .seat-card:hover { transform: translateY(-5px); border-color: var(--accent-cyan); box-shadow: 0 15px 30px rgba(0,0,0,0.5); background: rgba(15, 24, 54, 0.9); }
+        .seat-name { font-weight: 600; font-size: 1rem; margin-bottom: 5px; color: #fff; }
+        .seat-sub { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .seat-badge { position: absolute; top: 15px; right: 15px; font-size: 0.65rem; padding: 4px 8px; border-radius: 20px; background: rgba(255,255,255,0.1); color: var(--accent-cyan); border: 1px solid rgba(78, 242, 255, 0.2); }
+
+        /* Overlay */
+        .sim-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease; align-items: center; justify-content: center; }
+        .sim-overlay.active { display: flex; opacity: 1; }
+        .sim-panel { width: 90%; max-width: 1200px; height: 85vh; background: #0b1026; border: 1px solid var(--glass-border); border-radius: 24px; display: grid; grid-template-columns: 260px 1fr; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.8); }
+        .sim-sidebar { background: rgba(0,0,0,0.2); border-right: 1px solid var(--glass-border); padding: 30px 20px; display: flex; flex-direction: column; gap: 10px; }
+        .sim-header-mobile { padding: 0 10px 20px; border-bottom: 1px solid var(--glass-border); margin-bottom: 10px; }
+        .sim-seat-title { font-size: 1.4rem; font-weight: 700; line-height: 1.2; margin-bottom: 5px; }
+        .sim-seat-meta { font-size: 0.75rem; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px; }
+        .sim-nav-btn { text-align: left; padding: 12px 16px; border-radius: 10px; background: transparent; border: 1px solid transparent; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; transition: all 0.2s; }
+        .sim-nav-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .sim-nav-btn.active { background: linear-gradient(90deg, rgba(78, 242, 255, 0.15), transparent); border-left: 3px solid var(--accent-cyan); color: #fff; }
+        .sim-content { padding: 40px; overflow-y: auto; display: flex; flex-direction: column; gap: 30px; }
+        .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .kpi-card { background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; }
+        .kpi-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; }
+        .kpi-val { font-size: 2.2rem; font-weight: 700; margin-bottom: 5px; }
+        .kpi-delta { font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
+        .text-green { color: #4ade80; } .text-red { color: #f87171; }
+        .chart-container { height: 300px; background: rgba(0,0,0,0.3); border-radius: 16px; padding: 20px; border: 1px solid var(--glass-border); }
+        .ai-analysis-box { background: linear-gradient(145deg, rgba(78, 242, 255, 0.05), rgba(156, 107, 255, 0.05)); border: 1px solid rgba(78, 242, 255, 0.2); border-radius: 16px; padding: 25px; }
+        .ai-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; color: var(--accent-cyan); font-weight: 600; font-size: 0.9rem; }
+        .ai-text { line-height: 1.6; font-size: 1rem; color: #e2e8f0; }
+        .close-sim { position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .close-sim:hover { background: #ef4444; transform: rotate(90deg); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+    <header class="app-header">
+        <div class="brand-block">
+            <img src="nirvachan logo.jpg" alt="Nirvachan Logo" class="brand-logo-img">
+            <div>
+                <div class="brand-title">NIRVACHAN</div>
+                <div style="font-size:0.7rem; color:var(--text-muted); letter-spacing:2px;">ONE NATION · ONE ELECTION</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar">
+            <div class="nav-card active" onclick="switchView('mcd', this)">
+                <div class="nav-icon"><i class="fas fa-map-marked-alt"></i></div>
+                <div class="nav-info"><div>MCD Wards</div><div id="count-mcd">250 Wards</div></div>
+            </div>
+            <div class="nav-card" onclick="switchView('vs', this)">
+                <div class="nav-icon"><i class="fas fa-gavel"></i></div>
+                <div class="nav-info"><div>Vidhan Sabha</div><div id="count-vs">70 Constituencies</div></div>
+            </div>
+            <div class="nav-card" onclick="switchView('ls', this)">
+                <div class="nav-icon"><i class="fas fa-landmark"></i></div>
+                <div class="nav-info"><div>Lok Sabha</div><div id="count-ls">7 Constituencies</div></div>
+            </div>
+        </aside>
+        <main class="content-area" id="main-content"></main>
+    </div>
+</div>
+
+<div class="sim-overlay" id="sim-modal">
+    <button class="close-sim" onclick="closeSim()"><i class="fas fa-times"></i></button>
+    <div class="sim-panel">
+        <div class="sim-sidebar">
+            <div class="sim-header-mobile">
+                <div class="sim-seat-meta" id="sim-type">TYPE</div>
+                <div class="sim-seat-title" id="sim-title">Seat Name</div>
+            </div>
+            <button class="sim-nav-btn active" onclick="updateSimTab('gov')"><i class="fas fa-balance-scale"></i> Governance</button>
+            <button class="sim-nav-btn" onclick="updateSimTab('admin')"><i class="fas fa-clipboard-check"></i> Administrative</button>
+            <button class="sim-nav-btn" onclick="updateSimTab('fin')"><i class="fas fa-rupee-sign"></i> Financial</button>
+            <button class="sim-nav-btn" onclick="updateSimTab('const')"><i class="fas fa-book"></i> Constitutional</button>
+        </div>
+        <div class="sim-content">
+            <div class="kpi-row" id="kpi-container"></div>
+            <div class="chart-container"><canvas id="simChart"></canvas></div>
+            <div class="ai-analysis-box">
+                <div class="ai-header"><i class="fas fa-robot"></i> NIRVACHAN AI · IMPACT ANALYSIS</div>
+                <div class="ai-text" id="ai-text">Initializing Neural Engine...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. RANDOM ENGINE
+    function boxMullerTransform() {
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    function generateRealisticMetric(base, variance) {
+        let val = base + (boxMullerTransform() * variance);
+        return parseFloat(val.toFixed(1));
+    }
+
+    // 2. DELHI SEAT LISTS
+    const VS_NAMES = [
+        ["Narela", "Rural"], ["Burari", "Urban-Poor"], ["Timarpur", "Urban"], ["Adarsh Nagar", "Urban"], ["Badli", "Industrial"],
+        ["Rithala", "Urban"], ["Bawana", "Rural-Reserved"], ["Mundka", "Rural"], ["Kirari", "Urban-Poor"], ["Sultan Pur Majra", "Urban-Reserved"],
+        ["Nangloi Jat", "Urban-Poor"], ["Mangol Puri", "Urban-Reserved"], ["Rohini", "Urban-Rich"], ["Shalimar Bagh", "Urban-Rich"], ["Shakur Basti", "Urban"],
+        ["Tri Nagar", "Urban"], ["Wazirpur", "Industrial"], ["Model Town", "Urban-Rich"], ["Sadar Bazar", "Commercial"], ["Chandni Chowk", "Heritage"],
+        ["Matia Mahal", "Heritage"], ["Ballimaran", "Heritage"], ["Karol Bagh", "Commercial-Reserved"], ["Patel Nagar", "Urban"], ["Moti Nagar", "Industrial"],
+        ["Madipur", "Urban-Reserved"], ["Rajouri Garden", "Urban-Rich"], ["Hari Nagar", "Urban"], ["Tilak Nagar", "Urban"], ["Janakpuri", "Urban-Rich"],
+        ["Vikaspuri", "Urban"], ["Uttam Nagar", "Urban-High Density"], ["Dwarka", "Urban-Planned"], ["Matiala", "Urban-Rural Mix"], ["Najafgarh", "Rural"],
+        ["Bijwasan", "Urban-Rural Mix"], ["Palam", "Urban"], ["Delhi Cantt", "Cantonment"], ["Rajinder Nagar", "Urban"], ["New Delhi", "VVIP"],
+        ["Jangpura", "Urban"], ["Kasturba Nagar", "Urban"], ["Malviya Nagar", "Urban-Rich"], ["R.K. Puram", "Urban"], ["Mehrauli", "Historical"],
+        ["Chhatarpur", "Urban-Rural Mix"], ["Deoli", "Urban-Reserved"], ["Ambedkar Nagar", "Urban-Reserved"], ["Sangam Vihar", "Urban-Unplanned"], ["Greater Kailash", "Urban-Rich"],
+        ["Kalkaji", "Urban"], ["Tughlakabad", "Urban-Industrial"], ["Badarpur", "Urban-Poor"], ["Okhla", "Industrial"], ["Trilokpuri", "Urban-Reserved"],
+        ["Kondli", "Urban-Reserved"], ["Patparganj", "Urban"], ["Laxmi Nagar", "Commercial"], ["Vishwas Nagar", "Urban"], ["Krishna Nagar", "Urban"],
+        ["Gandhi Nagar", "Commercial"], ["Shahdara", "Urban"], ["Seemapuri", "Urban-Reserved"], ["Rohtas Nagar", "Urban"], ["Seelampur", "Urban-High Density"],
+        ["Ghonda", "Urban"], ["Babarpur", "Urban"], ["Gokalpur", "Urban-Reserved"], ["Mustafabad", "Urban-High Density"], ["Karawal Nagar", "Urban"]
+    ];
+
+    const LS_NAMES = [
+        ["Chandni Chowk", "Urban Core"],
+        ["North East Delhi", "High Density"],
+        ["East Delhi", "Mixed Urban"],
+        ["New Delhi", "VVIP Core"],
+        ["North West Delhi", "SC-Reserved"],
+        ["West Delhi", "Outer Urban"],
+        ["South Delhi", "Urban-Rural Mix"]
+    ];
+
+    // 3. DATABASE
+    const DB = { ls: [], vs: [], mcd: [] };
+
+    function buildDatabase() {
+        // Vidhan Sabha & derived MCD wards
+        VS_NAMES.forEach((item, i) => {
+            const type = item[1];
+
+            // Base cost (Lakhs) tuned by Delhi seat type
+            let baseCost = 90;
+            if (type.includes("Rural")) baseCost = 70;
+            if (type.includes("Urban-Poor") || type.includes("High Density")) baseCost = 80;
+            if (type.includes("Urban-Rich") || type.includes("VVIP")) baseCost = 110;
+            if (type.includes("Industrial")) baseCost = 85;
+
+            // Turnout pattern for Delhi
+            let baseTurnout = 60;
+            if (type.includes("Rural")) baseTurnout = 65;
+            if (type.includes("Urban-Poor") || type.includes("High Density")) baseTurnout = 62;
+            if (type.includes("Urban-Rich") || type.includes("VVIP")) baseTurnout = 55;
+
+            // MCC days per full 5-year cycle: realistic 45–80 days depending on contest intensity
+            let baseMCC = 55;
+            if (type.includes("Rural")) baseMCC = 50;
+            if (type.includes("High Density") || type.includes("Heritage") || type.includes("Industrial")) baseMCC = 65;
+            if (type.includes("VVIP")) baseMCC = 70;
+
+            let metric = {
+                cost: { curr: generateRealisticMetric(baseCost, 8), onoe: 0 },
+                turnout: { curr: generateRealisticMetric(baseTurnout, 3), onoe: 0 },
+                mcc: { curr: Math.round(generateRealisticMetric(baseMCC, 6)), onoe: 0 },
+                security: { curr: 3, onoe: 1 } // LS + VS + local vs single combined cycle for Delhi
+            };
+
+            // ONOE assumptions: ~30–35% cost saving, 5–7 point turnout gain, MCC reduced to ~⅓ of current scattered days for that seat. [file:126]
+            metric.cost.onoe = (metric.cost.curr * 0.68).toFixed(1);
+            metric.turnout.onoe = (metric.turnout.curr + generateRealisticMetric(5.5, 1.2)).toFixed(1);
+            metric.mcc.onoe = Math.round(metric.mcc.curr * 0.35);
+
+            let vsObj = { id: `V${i + 1}`, name: item[0], type: type, metrics: metric };
+            DB.vs.push(vsObj);
+
+            // MCD wards under each VS seat
+            const wardCount = i < 40 ? 4 : 3;
+            for (let j = 1; j <= wardCount; j++) {
+                let mcdMetric = {
+                    cost: { curr: (metric.cost.curr / wardCount).toFixed(1), onoe: 0 },
+                    turnout: { curr: generateRealisticMetric(metric.turnout.curr, 2.2), onoe: 0 },
+                    mcc: { curr: Math.round(metric.mcc.curr + generateRealisticMetric(4, 3)), onoe: 0 },
+                    security: { curr: metric.security.curr, onoe: metric.security.onoe }
+                };
+                mcdMetric.cost.onoe = (mcdMetric.cost.curr * 0.68).toFixed(1);
+                mcdMetric.turnout.onoe = (parseFloat(mcdMetric.turnout.curr) + 3.5).toFixed(1);
+                mcdMetric.mcc.onoe = Math.round(mcdMetric.mcc.curr * 0.35);
+
+                DB.mcd.push({
+                    id: `M${i + 1}-${j}`,
+                    name: `Ward ${j} (${item[0]})`,
+                    parent: item[0],
+                    type: type,
+                    metrics: mcdMetric
+                });
+            }
+        });
+
+        // Lok Sabha seats over Delhi
+        LS_NAMES.forEach((item, i) => {
+            let baseCost = 450;
+            let baseTurnout = 58;
+            let baseMCC = 70;
+
+            if (item[1].includes("High Density")) {
+                baseTurnout = 60;
+                baseMCC = 75;
+            }
+            if (item[1].includes("VVIP")) {
+                baseCost = 500;
+                baseMCC = 80;
+            }
+
+            let metric = {
+                cost: { curr: generateRealisticMetric(baseCost, 35), onoe: 0 },
+                turnout: { curr: generateRealisticMetric(baseTurnout, 2.3), onoe: 0 },
+                mcc: { curr: Math.round(generateRealisticMetric(baseMCC, 8)), onoe: 0 },
+                security: { curr: 3, onoe: 1 }
+            };
+
+            metric.cost.onoe = (metric.cost.curr * 0.68).toFixed(1);
+            metric.turnout.onoe = (metric.turnout.curr + 5.0).toFixed(1);
+            metric.mcc.onoe = Math.round(metric.mcc.curr * 0.35);
+
+            DB.ls.push({ id: `L${i + 1}`, name: item[0], type: item[1], metrics: metric });
+        });
+    }
+
+    // 4. APP STATE
+    let currentView = 'mcd';
+    let currentSeat = null;
+    let simChart = null;
+
+    window.onload = () => {
+        buildDatabase();
+        document.getElementById('count-mcd').innerText = `${DB.mcd.length} Wards`;
+        document.getElementById('count-vs').innerText = `${DB.vs.length} Constituencies`;
+        document.getElementById('count-ls').innerText = `${DB.ls.length} Constituencies`;
+        switchView('mcd', document.querySelector('.nav-card.active'));
+    };
+
+    function switchView(view, btn) {
+        currentView = view;
+        document.querySelectorAll('.nav-card').forEach(el => el.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        const container = document.getElementById('main-content');
+        const data = DB[view];
+        const title = view === 'ls' ? "Lok Sabha – Delhi" : (view === 'vs' ? "Vidhan Sabha – Delhi" : "MCD Wards – Delhi");
+        
+        let html = `
+            <div class="page-header">
+                <div class="page-title">${title}</div>
+            </div>
+            <div class="seats-grid">
+        `;
+        data.forEach(seat => {
+            html += `
+                <div class="seat-card" onclick="runSimulation('${seat.id}')">
+                    <span class="seat-badge">${seat.type}</span>
+                    <div class="seat-name">${seat.name}</div>
+                    <div class="seat-sub">${seat.parent || "Delhi Parliamentary Seat"}</div>
+                    <div style="margin-top:15px; font-size:0.7rem; color:var(--accent-cyan); display:flex; justify-content:space-between;">
+                        <span><i class="fas fa-users"></i> ${seat.metrics.turnout.curr}%</span>
+                        <span><i class="fas fa-rupee-sign"></i> ${seat.metrics.cost.curr}L</span>
+                    </div>
+                </div>`;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+    }
+
+    function runSimulation(seatId) {
+        let seat = DB.ls.find(s => s.id === seatId) || DB.vs.find(s => s.id === seatId) || DB.mcd.find(s => s.id === seatId);
+        currentSeat = seat;
+        document.getElementById('sim-modal').classList.add('active');
+        document.getElementById('sim-title').innerText = seat.name;
+        document.getElementById('sim-type').innerText = (currentView + " • " + seat.type).toUpperCase();
+        updateSimTab('gov');
+    }
+
+    function updateSimTab(tab) {
+        document.querySelectorAll('.sim-nav-btn').forEach(b => b.classList.remove('active'));
+        event.target.closest('button').classList.add('active');
+        const kpiBox = document.getElementById('kpi-container');
+        const m = currentSeat.metrics;
+
+        let data1, data2, labels, chartLabel, aiText;
+
+        if (tab === 'gov') {
+            const mccSaved = m.mcc.curr - m.mcc.onoe;
+            kpiBox.innerHTML = `
+                ${makeKPI("MCC Pause", m.mcc.curr + " Days", "▼ " + mccSaved + " days", true)}
+                ${makeKPI("Turnout", m.turnout.curr + "%", "▲ " + (m.turnout.onoe - m.turnout.curr).toFixed(1) + "%", true)}
+                ${makeKPI("Stability", "Fragmented", "5‑Year Rhythm", true)}
+            `;
+            labels = ["MCC Days", "Turnout %", "Governance Stability"];
+            data1 = [m.mcc.curr, m.turnout.curr, 45];
+            data2 = [m.mcc.onoe, m.turnout.onoe, 85];
+            chartLabel = "Governance Metrics";
+            aiText = buildGovernanceInsight(currentSeat, m);
+        } else if (tab === 'fin') {
+            const saving = (m.cost.curr - m.cost.onoe).toFixed(1);
+            kpiBox.innerHTML = `
+                ${makeKPI("Election Cost", "₹" + m.cost.curr + "L", "▼ " + saving + "L", true)}
+                ${makeKPI("ONOE Cost", "₹" + m.cost.onoe + "L", "Shared infra", true)}
+                ${makeKPI("Logistics", "Multiple Runs", "One Consolidated Run", true)}
+            `;
+            labels = ["Cost (Lakhs)", "Logistics Load", "Manpower Load"];
+            data1 = [m.cost.curr, 100, 100];
+            data2 = [m.cost.onoe, 65, 55];
+            chartLabel = "Financial Metrics";
+            aiText = buildFinancialInsight(currentSeat, m, saving);
+        } else if (tab === 'admin') {
+            const secSaved = m.security.curr - m.security.onoe;
+            kpiBox.innerHTML = `
+                ${makeKPI("Deployments", m.security.curr + " Cycles", "▼ " + secSaved + " cycles", true)}
+                ${makeKPI("Staff Duty", "High Rotation", "Single Peak", true)}
+                ${makeKPI("Disruption", "Frequent", "Clustered", true)}
+            `;
+            labels = ["Security Cycles", "Staff Load", "School Days Lost"];
+            data1 = [m.security.curr, 80, 32];
+            data2 = [m.security.onoe, 35, 12];
+            chartLabel = "Administrative Load";
+            aiText = buildAdministrativeInsight(currentSeat, m);
+        } else if (tab === 'const') {
+            kpiBox.innerHTML = `
+                ${makeKPI("Stability", "Short Spurts", "Fixed Tenure", true)}
+                ${makeKPI("Alignment", "Desynced", "Aligned to Delhi Cycle", true)}
+                ${makeKPI("Clarity", "Split Signals", "Unified Mandate", true)}
+            `;
+            labels = ["Stability", "Delhi Alignment", "Clarity of Mandate"];
+            data1 = [45, 60, 55];
+            data2 = [88, 90, 90];
+            chartLabel = "Constitutional Health";
+            aiText = buildConstitutionalInsight(currentSeat);
+        }
+
+        renderChart(labels, data1, data2, chartLabel);
+        writeAI(aiText);
+    }
+
+    function makeKPI(label, val, delta, good) {
+        return `<div class="kpi-card">
+            <div class="kpi-label">${label}</div>
+            <div class="kpi-val">${val}</div>
+            <div class="kpi-delta ${good ? 'text-green' : 'text-red'}">${delta}</div>
+        </div>`;
+    }
+
+    function renderChart(labels, d1, d2, label) {
+        const ctx = document.getElementById('simChart').getContext('2d');
+        if (simChart) simChart.destroy();
+        simChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Current', data: d1, backgroundColor: '#3b82f6' },
+                    { label: 'ONOE', data: d2, backgroundColor: '#a855f7' }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#cbd5e1' } }
+                },
+                scales: {
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8' }
+                    }
+                }
+            }
+        });
+    }
+
+    // 5. DELHI-FOCUSED AI INSIGHTS (no global-country text)
+
+    function buildGovernanceInsight(seat, m) {
+        const type = seat.type;
+        let patternLine = "";
+
+        if (type.includes("Rural")) {
+            patternLine = `${seat.name} covers village and peri‑urban belts where schemes and local works get delayed whenever MCC kicks in; compressing policy pause from around ${m.mcc.curr} scattered days to about ${m.mcc.onoe} days in one block lets basic works run more smoothly for most of the five‑year cycle.`;
+        } else if (type.includes("Urban-Poor") || type.includes("High Density")) {
+            patternLine = `${seat.name} has dense, lower‑income neighbourhoods where frequent MCC cycles interrupt welfare delivery and local road/drainage works; a single ONOE cycle with ${m.mcc.onoe} days of MCC instead of roughly ${m.mcc.curr} offers more continuous service delivery.`;
+        } else if (type.includes("Urban-Rich") || type.includes("VVIP")) {
+            patternLine = `${seat.name} is a high‑visibility segment where governance signals matter; synchronizing Lok Sabha, Assembly, and ward elections gives a clearer five‑year mandate and reduces political churn for local agencies.`;
+        } else {
+            patternLine = `${seat.name} behaves like a mixed urban constituency where ONOE mainly reduces stop‑start governance rhythm rather than drastically changing turnout patterns.`;
+        }
+
+        return `Governance analysis for ${seat.name}: under the current staggered calendar, voters here see multiple separate elections across ward, Assembly, and Parliament, creating around ${m.mcc.curr} days of Model Code of Conduct over a full cycle and pushing turnout to just about ${m.turnout.curr}%. In a synchronized Delhi cycle, that compresses to roughly ${m.mcc.onoe} MCC days and pushes participation closer to ${m.turnout.onoe}%, while agencies get longer uninterrupted windows to plan projects. ${patternLine}`;
+    }
+
+    function buildFinancialInsight(seat, m, saving) {
+        const viewLabel = currentView === 'ls' ? "Lok Sabha" : (currentView === 'vs' ? "Assembly" : "ward‑level");
+        return `Financial outlook for ${seat.name}: each ${viewLabel} contest for this part of Delhi currently requires separate polling staff, transport, and security, costing around ₹${m.cost.curr} Lakhs per full cycle. When Delhi’s three tiers are pulled into a common ONOE calendar, the same geography can be served with one logistics push, cutting the estimated spend to roughly ₹${m.cost.onoe} Lakhs and freeing up about ₹${saving} Lakhs that can be redirected to local works.`;
+    }
+
+    function buildAdministrativeInsight(seat, m) {
+        const secSaved = m.security.curr - m.security.onoe;
+        return `Administrative load in ${seat.name} is currently shaped by repeated deployments of Delhi Police, CAPF, and teaching staff on election duty: in a typical five‑year window, forces and staff are moved about ${m.security.curr} different times across Lok Sabha, Vidhan Sabha, and MCD polls. With a single synchronized calendar, that duty is concentrated into ${m.security.onoe} major deployment, reducing fatigue, cutting repeated school closures used as polling stations, and making movement plans for city traffic and safety easier to execute.`;
+    }
+
+    function buildConstitutionalInsight(seat) {
+        const layer = currentView === 'ls' ? "parliamentary" : (currentView === 'vs' ? "Assembly" : "local");
+        return `Constitutionally, ${seat.name} would anchor its ${layer} election to a common Delhi electoral year, so that any early dissolution only fills the remaining term instead of starting a fresh five‑year clock. For voters in this seat, that means all three tiers of representation—ward councillor, MLA, and MP—are renewed together at predictable intervals, and the signals they send through the ballot box are aligned rather than split across multiple years.`;
+    }
+
+    // 6. AI typing + close
+    function writeAI(text) {
+        let el = document.getElementById('ai-text');
+        el.innerHTML = "";
+        let i = 0;
+        function type() {
+            if (i < text.length) {
+                el.innerHTML += text.charAt(i);
+                i++;
+                setTimeout(type, 15);
+            }
+        }
+        type();
+    }
+
+    function closeSim() {
+        document.getElementById('sim-modal').classList.remove('active');
+    }
+</script>
+</body>
+</html>
